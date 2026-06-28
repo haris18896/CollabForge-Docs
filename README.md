@@ -28,16 +28,16 @@ Background Worker
 MongoDB + Redis
 ```
 
-## Phase 1: Backend Foundation
+## `Phase 1: Backend Foundation`
 
 **Goal:** Create a clean production-ready Fastify backend base.
 
 ### Steps
 
-1. Create project folder and initialize Node project
-2. Add TypeScript setup
-3. Install Fastify and core dependencies
-4. Create clean modular folder structure
+1. Create project folder and initialize Node project ✅
+2. Add TypeScript setup ✅
+3. Install Fastify and core dependencies ✅
+4. Create clean modular folder structure ✅
 5. Add environment configuration
 6. Validate `.env` using Zod
 7. Create Fastify app bootstrap
@@ -51,9 +51,296 @@ MongoDB + Redis
 15. Add linting and formatting setup
 16. Confirm build works
 
+### `Phase 1 - Step 1 - Create Folder & Initilize Project`
+
+```sh
+cd collaborative-document-editor
+# Create Node project
+npm init -y
+
+# Install Typescript
+yarn add -D typescript tsx @types/node
+```
+
+### `Phase 1 - Step 2 - Add Typescript setup`
+
+```
+# Initialize TypeScript
+npx tsc --init
+
+# Create the Soruce Directory
+mkdir src
+```
+
+- Replace the generated `tsconfig.json` file with what we have now in the `tsconfig.json` its been updated
+- replace the `package.json` script with the below
+
+```json
+"scripts": {
+  "dev": "tsx watch src/server.ts",
+  "build": "tsc",
+  "start": "node dist/server.js",
+  "type-check": "tsc --noEmit"
+}
+```
+
+- add `server.ts` to src
+- Verification `yarn type-check`
+
+### `Phase 1 - Step 3 - Install Runtime Dependencies`
+
+```sh
+yarn add \
+fastify \
+@fastify/env \
+@fastify/sensible
+```
+
+### Why Aren't We Installing Everything?
+
+You might see projects installing 20–30 packages on day one.
+
+We'll avoid that.
+
+For example:
+
+```md
+- Authentication → install when building Auth
+- MongoDB → install in Database phase
+- Redis → install in Redis phase
+- Swagger → install in API Docs phase
+- WebSockets → install in Collaboration phase
+- Yjs → install in CRDT phase
+```
+
+This keeps dependencies intentional and easier to maintain.
+
+### Verify Installed Packages
+
+```sh
+yarn why fastify
+```
+
+### Discuss the Architecture Before Writing Code
+
+This is an important design decision.
+
+### ❌ Beginner Structure
+
+This works for small demos but becomes difficult to scale.
+
+```md
+src/
+├── server.ts
+├── routes.ts
+├── db.ts
+└── app.ts
+```
+
+### ❌ Express-Style Structure
+
+This is common but tends to become layer-centric rather than feature-centric. As projects grow, related code gets scattered across many folders.
+
+```md
+src/
+├── controllers/
+├── services/
+├── routes/
+├── middleware/
+└── models/
+```
+
+### ✅ Our Structure (Feature-Based + Shared Infrastructure)
+
+We'll gradually build toward:
+
+```md
+src/
+├── app/
+│ ├── plugins/
+│ ├── config/
+│ ├── hooks/
+│ ├── middleware/
+│ ├── errors/
+│ ├── utils/
+│ └── server.ts
+│
+├── modules/
+│ ├── auth/
+│ ├── users/
+│ ├── documents/
+│ ├── collaboration/
+│ └── ...
+│
+├── shared/
+│
+└── index.ts
+```
+
+### Why this approach?
+
+It gives us:
+
+```
+- High cohesion (related code stays together)
+- Low coupling (modules don't depend heavily on each other)
+- Easier onboarding for new developers
+- Better scalability as modules grow
+- Cleaner testing boundaries
+```
+
+- ✅ This aligns well with `Domain-Driven Design (DDD)` and `modular monolith` principles, making it easier to evolve into `microservices` later if needed.
+
+### Fastify Instance Design
+
+There are two common approaches.
+
+Option 1 — Single File
+
+```ts
+const app = Fastify();
+```
+
+Suitable for small projects, but difficult to test and extend.
+
+Option 2 — Factory Function ✅ (Recommended)
+
+```ts
+export function buildServer() {
+  return Fastify();
+}
+```
+
+Why choose this?
+
+Because later we can:
+
+```
+- Inject different configurations for testing
+- Register plugins conditionally
+- Reuse the server in integration tests
+- Keep startup logic separate from application construction
+```
+
+This pattern is widely used in production Fastify applications.
+
+## `Phase 1 - Step 4 - Create clean modular folder structure`
+
+- We are using a modular monolith structure:
+
+```
+src/
+├── app/
+├── modules/
+└── shared/
+```
+
+This gives us clean separation between:
+
+```
+- application infrastructure
+- business modules
+- shared reusable utilities
+```
+
+### 4.1 Create Folders
+
+```sh
+mkdir -p src/app/{config,plugins,hooks,middleware,errors,utils}
+mkdir -p src/modules
+mkdir -p src/shared/{constants,types,utils}
+```
+
+- `src/app` Application-level setup.
+- This should not contain business logic.
+- Use this for:
+
+```
+- Fastify bootstrap
+- config loading
+- plugins
+- global hooks
+- error handling
+- middleware
+- server utilities
+```
+
+- `src/modules` Business features. later we will build
+
+```
+- modules/auth
+- modules/users
+- modules/documents
+- modules/collaboration
+- modules/sharing
+- modules/comments
+- modules/notifications
+```
+
+- Each module will eventually contain its own:
+
+```
+routes
+service
+repository
+schemas
+types
+tests
+```
+
+- `src/shared` Reusable cross-module utilities.
+- Use this only for things that are genuinely shared.
+
+```
+- pagination helpers
+- common constants
+- shared types
+- date utilities
+- response helpers
+```
+
+### 4.2 — Add .gitkeep Files
+
+- Git does not track empty folders, so add placeholders:
+
+```sh
+find src -type d -empty -exec touch {}/.gitkeep \;
+```
+
+### 4.3 — Update Temporary server.ts
+
+- For now, keep src/server.ts only as a temporary TypeScript entry point:
+
+```ts
+console.log("CollabForge Docs backend initialized");
+```
+
+Verify
+
+```sh
+yarn type-check
+yarn build
+# expected dist/server.js (generated)
+```
+
+### Production Note
+
+This structure intentionally avoids `controllers/`, `services/`, and `repositories/` at the global level.
+We’ll keep those inside each module.
+
+```
+src/modules/documents/
+├── documents.routes.ts
+├── documents.service.ts
+├── documents.repository.ts
+├── documents.schema.ts
+├── documents.types.ts
+└── documents.test.ts
+```
+
 ---
 
-## Phase 2: MongoDB Connection & Database Layer
+## `Phase 2: MongoDB Connection & Database Layer`
 
 **Goal:** Connect backend to MongoDB professionally.
 
@@ -73,7 +360,7 @@ MongoDB + Redis
 
 ---
 
-## Phase 3: User Module & Authentication
+## `Phase 3: User Module & Authentication`
 
 **Goal:** Build secure authentication and user foundation.
 
@@ -102,7 +389,7 @@ MongoDB + Redis
 
 ---
 
-## Phase 4: RBAC, Permissions Foundation & Audit Logs
+## `Phase 4: RBAC, Permissions Foundation & Audit Logs`
 
 **Goal:** Add security rules before building business modules.
 
@@ -122,7 +409,7 @@ MongoDB + Redis
 
 ---
 
-## Phase 5: Document Metadata API
+## `Phase 5: Document Metadata API`
 
 **Goal:** Build REST APIs before real-time editing.
 
@@ -151,7 +438,7 @@ MongoDB + Redis
 
 ---
 
-## Phase 6: Sharing & Document Access Control
+## `Phase 6: Sharing & Document Access Control`
 
 **Goal:** Build Google Docs-like permission model.
 
@@ -172,7 +459,7 @@ MongoDB + Redis
 
 ---
 
-## Phase 7: WebSocket Foundation
+## `Phase 7: WebSocket Foundation`
 
 **Goal:** Add WebSocket support without Yjs first.
 
@@ -194,7 +481,7 @@ MongoDB + Redis
 
 ---
 
-## Phase 8: Yjs Real-Time Collaboration
+## `Phase 8: Yjs Real-Time Collaboration`
 
 **Goal:** Sync document content between multiple users.
 
@@ -215,7 +502,7 @@ MongoDB + Redis
 
 ---
 
-## Phase 9: Yjs Persistence in MongoDB
+## `Phase 9: Yjs Persistence in MongoDB`
 
 **Goal:** Save collaborative edits permanently.
 
@@ -233,7 +520,7 @@ MongoDB + Redis
 
 ---
 
-## Phase 10: Snapshots & Version History
+## `Phase 10: Snapshots & Version History`
 
 **Goal:** Add document recovery and history.
 
@@ -251,7 +538,7 @@ MongoDB + Redis
 
 ---
 
-## Phase 11: Cursor Presence & Awareness
+## `Phase 11: Cursor Presence & Awareness`
 
 **Goal:** Show active users, cursor position, and selections.
 
@@ -270,7 +557,7 @@ MongoDB + Redis
 
 ---
 
-## Phase 12: Offline Editing & Sync
+## `Phase 12: Offline Editing & Sync`
 
 **Goal:** Allow users to edit offline and merge later.
 
@@ -289,7 +576,7 @@ MongoDB + Redis
 
 ---
 
-## Phase 13: Comments & Notifications
+## `Phase 13: Comments & Notifications`
 
 **Goal:** Add collaboration features beyond editing.
 
@@ -309,7 +596,7 @@ MongoDB + Redis
 
 ---
 
-## Phase 14: API Documentation
+## `Phase 14: API Documentation`
 
 **Goal:** Make APIs usable and professional.
 
@@ -327,7 +614,7 @@ MongoDB + Redis
 
 ---
 
-## Phase 15: Testing Strategy
+## `Phase 15: Testing Strategy`
 
 **Goal:** Make the project reliable.
 
@@ -347,7 +634,7 @@ MongoDB + Redis
 
 ---
 
-## Phase 16: Security Hardening
+## `Phase 16: Security Hardening`
 
 **Goal:** Protect the backend properly.
 
@@ -368,7 +655,7 @@ MongoDB + Redis
 
 ---
 
-## Phase 17: Observability & Logging
+## `Phase 17: Observability & Logging`
 
 **Goal:** Make debugging production issues easier.
 
@@ -388,7 +675,7 @@ MongoDB + Redis
 
 ---
 
-## Phase 18: Redis & Background Jobs
+## `Phase 18: Redis & Background Jobs`
 
 **Goal:** Prepare for scaling and async workflows.
 
@@ -407,7 +694,7 @@ MongoDB + Redis
 
 ---
 
-## Phase 19: Multi-Instance Scaling
+## `Phase 19: Multi-Instance Scaling`
 
 **Goal:** Prepare for real production deployment.
 
@@ -426,7 +713,7 @@ MongoDB + Redis
 
 ---
 
-## Phase 20: Deployment
+## `Phase 20: Deployment`
 
 **Goal:** Deploy backend professionally.
 
@@ -448,3 +735,7 @@ MongoDB + Redis
 14. Add backup strategy
 
 ---
+
+```
+
+```
