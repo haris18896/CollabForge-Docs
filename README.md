@@ -1,25 +1,55 @@
-# CollabForge-Docs
+# collaborative-document-editor
+
+```
+Client Editor
+   |
+   | REST APIs
+   v
+Fastify API Server
+   |
+   | Auth / Users / Documents / Sharing / Audit Logs
+   v
+MongoDB
+
+Client Editor
+   |
+   | WebSocket / Yjs sync
+   v
+Collaboration Gateway
+   |
+   | Redis Pub/Sub for multi-server sync
+   v
+Other Collaboration Instances
+
+Background Worker
+   |
+   | Snapshots / Email / Cleanup / Versioning
+   v
+MongoDB + Redis
+```
 
 ## Phase 1: Backend Foundation
 
-**Goal:** Create a clean production-ready backend base.
+**Goal:** Create a clean production-ready Fastify backend base.
 
 ### Steps
 
 1. Create project folder and initialize Node project
 2. Add TypeScript setup
 3. Install Fastify and core dependencies
-4. Create clean folder structure
+4. Create clean modular folder structure
 5. Add environment configuration
 6. Validate `.env` using Zod
 7. Create Fastify app bootstrap
 8. Create server entry file
-9. Add health-check route
-10. Add Docker Compose for MongoDB
-11. Add basic test setup with Vitest
-12. Test `/health` route
-13. Add linting/formatting setup
-14. Confirm build works
+9. Add centralized error handling
+10. Add standard API response format
+11. Add health-check route
+12. Add Docker Compose for MongoDB and Redis
+13. Add basic test setup with Vitest
+14. Test `/health` route
+15. Add linting and formatting setup
+16. Confirm build works
 
 ---
 
@@ -29,45 +59,72 @@
 
 ### Steps
 
-1. Create MongoDB client plugin
+1. Create MongoDB plugin
 2. Add database connection lifecycle
 3. Add graceful shutdown
 4. Create database constants
 5. Create collection names
 6. Create base repository pattern
-7. Create health check for database
-8. Add indexes setup
-9. Add database integration test
-10. Verify MongoDB is working from backend
+7. Add pagination helper
+8. Add database health check
+9. Add indexes setup strategy
+10. Add database integration test
+11. Verify MongoDB is working from backend
 
 ---
 
 ## Phase 3: User Module & Authentication
 
-**Goal:** Add secure user registration and login.
+**Goal:** Build secure authentication and user foundation.
 
 ### Steps
 
 1. Create user module folder
 2. Define user schema/model
-3. Add password hashing with bcrypt
+3. Add password hashing with Argon2 or bcrypt
 4. Create user repository
 5. Create auth service
 6. Create signup route
 7. Create login route
-8. Generate JWT token
-9. Add auth middleware/plugin
-10. Add protected test route
-11. Add validation for auth payloads
-12. Add auth unit tests
-13. Add auth integration tests
-14. Test with Postman/Thunder Client
+8. Generate access token
+9. Generate refresh token
+10. Store hashed refresh token
+11. Add refresh token rotation
+12. Add logout flow
+13. Add auth middleware/plugin
+14. Add protected `/me` route
+15. Add profile update route
+16. Add soft delete/deactivate user flow
+17. Add validation for auth payloads
+18. Add auth unit tests
+19. Add auth integration tests
+20. Test with Postman/Thunder Client
 
 ---
 
-## Phase 4: Document Metadata API
+## Phase 4: RBAC, Permissions Foundation & Audit Logs
 
-**Goal:** Build normal REST APIs before real-time editing.
+**Goal:** Add security rules before building business modules.
+
+### Steps
+
+1. Define system roles: `user`, `admin`, `super_admin`
+2. Define permission constants
+3. Create RBAC guard/plugin
+4. Create ownership guard utility
+5. Create audit log collection
+6. Create audit log service
+7. Log login/logout/security actions
+8. Add admin user management routes
+9. Add activate/deactivate user route
+10. Add role update route
+11. Add authorization tests
+
+---
+
+## Phase 5: Document Metadata API
+
+**Goal:** Build REST APIs before real-time editing.
 
 ### Steps
 
@@ -75,42 +132,69 @@
 2. Define document schema
 3. Design MongoDB document model
 4. Add owner field
-5. Add permissions/sharing field
-6. Create document repository
-7. Create document service
-8. Create document routes
-9. Add create document API
-10. Add list my documents API
-11. Add get document by ID API
-12. Add update title API
-13. Add delete/archive document API
-14. Add authorization checks
-15. Add document API tests
+5. Add document status: `active`, `archived`, `deleted`
+6. Add visibility: `private`, `shared`, `public_link`
+7. Create document repository
+8. Create document service
+9. Create document routes
+10. Add create document API
+11. Add list my documents API
+12. Add get document by ID API
+13. Add update title API
+14. Add archive document API
+15. Add restore document API
+16. Add soft delete document API
+17. Add pagination/search/filter/sort
+18. Add ownership checks
+19. Add document audit logs
+20. Add document API tests
 
 ---
 
-## Phase 5: WebSocket Foundation
+## Phase 6: Sharing & Document Access Control
+
+**Goal:** Build Google Docs-like permission model.
+
+### Steps
+
+1. Define document roles: `owner`, `editor`, `viewer`
+2. Add collaborator collection
+3. Add invite collection
+4. Create invite/share API
+5. Add accept invite API
+6. Add reject invite API
+7. Add revoke access API
+8. Add collaborator role update API
+9. Restrict REST APIs by permission
+10. Add document permission guard
+11. Add audit logs for sharing actions
+12. Add authorization tests
+
+---
+
+## Phase 7: WebSocket Foundation
 
 **Goal:** Add WebSocket support without Yjs first.
 
 ### Steps
 
 1. Install WebSocket dependency
-2. Decide Fastify WebSocket plugin vs standalone `ws` server
+2. Decide Fastify WebSocket plugin vs standalone `ws`
 3. Create WebSocket module
 4. Add connection endpoint
-5. Add connection logging
-6. Add authentication during WebSocket connection
-7. Add document authorization check
-8. Add room concept using `documentId`
-9. Add basic join/leave events
+5. Add WebSocket authentication
+6. Add document authorization check
+7. Add room concept using `documentId`
+8. Add basic join/leave events
+9. Add connection logging
 10. Add ping/pong heartbeat
-11. Test WebSocket connection manually
-12. Add WebSocket integration test
+11. Add read-only viewer connection mode
+12. Test WebSocket connection manually
+13. Add WebSocket integration test
 
 ---
 
-## Phase 6: Yjs Real-time Collaboration
+## Phase 8: Yjs Real-Time Collaboration
 
 **Goal:** Sync document content between multiple users.
 
@@ -122,15 +206,16 @@
 4. Create document room map
 5. Bind Yjs document to WebSocket room
 6. Handle Yjs sync messages
-7. Open same document in two clients
-8. Verify real-time text sync
-9. Add cleanup when users disconnect
-10. Add logging for sync lifecycle
-11. Add basic Yjs sync test
+7. Restrict Yjs updates for viewers
+8. Open same document in two clients
+9. Verify real-time text sync
+10. Add cleanup when users disconnect
+11. Add logging for sync lifecycle
+12. Add basic Yjs sync test
 
 ---
 
-## Phase 7: Yjs Persistence in MongoDB
+## Phase 9: Yjs Persistence in MongoDB
 
 **Goal:** Save collaborative edits permanently.
 
@@ -141,16 +226,32 @@
 3. Create `document_updates` collection
 4. Add update append logic
 5. Restore Yjs document from saved updates
-6. Add snapshot strategy
-7. Compact old updates into snapshots
-8. Add document version metadata
-9. Test server restart restore
-10. Add persistence integration tests
-11. Add failure-handling logic
+6. Add update ordering
+7. Add failure-handling logic
+8. Test server restart restore
+9. Add persistence integration tests
 
 ---
 
-## Phase 8: Cursor Presence & Awareness
+## Phase 10: Snapshots & Version History
+
+**Goal:** Add document recovery and history.
+
+### Steps
+
+1. Create `document_snapshots` collection
+2. Create `document_versions` collection
+3. Add snapshot creation strategy
+4. Compact old updates into snapshots
+5. Add version metadata
+6. Add list versions API
+7. Add restore version API
+8. Add background job for snapshotting
+9. Add version restore tests
+
+---
+
+## Phase 11: Cursor Presence & Awareness
 
 **Goal:** Show active users, cursor position, and selections.
 
@@ -169,7 +270,7 @@
 
 ---
 
-## Phase 9: Offline Editing & Sync
+## Phase 12: Offline Editing & Sync
 
 **Goal:** Allow users to edit offline and merge later.
 
@@ -188,26 +289,45 @@
 
 ---
 
-## Phase 10: Access Control & Sharing
+## Phase 13: Comments & Notifications
 
-**Goal:** Build Google Docs-like permission model.
+**Goal:** Add collaboration features beyond editing.
 
 ### Steps
 
-1. Define roles: owner, editor, viewer
-2. Add permissions schema
-3. Add invite/share API
-4. Add revoke access API
-5. Add role update API
-6. Restrict REST APIs by permission
-7. Restrict WebSocket editing by permission
-8. Allow viewers to connect read-only
-9. Prevent unauthorized Yjs updates
-10. Add authorization tests
+1. Create comments collection
+2. Add comment API
+3. Add reply API
+4. Add resolve comment API
+5. Add reopen comment API
+6. Add mention user logic
+7. Create notifications collection
+8. Add in-app notifications
+9. Add background email job
+10. Add comment permission checks
+11. Add comment tests
 
 ---
 
-## Phase 11: Testing Strategy
+## Phase 14: API Documentation
+
+**Goal:** Make APIs usable and professional.
+
+### Steps
+
+1. Add Swagger/OpenAPI setup
+2. Document auth APIs
+3. Document document APIs
+4. Document sharing APIs
+5. Document comments APIs
+6. Add request/response schemas
+7. Add error response examples
+8. Add authentication support in Swagger
+9. Verify API docs locally
+
+---
+
+## Phase 15: Testing Strategy
 
 **Goal:** Make the project reliable.
 
@@ -227,7 +347,7 @@
 
 ---
 
-## Phase 12: Security Hardening
+## Phase 16: Security Hardening
 
 **Goal:** Protect the backend properly.
 
@@ -236,18 +356,19 @@
 1. Add Helmet security headers
 2. Configure CORS correctly
 3. Add rate limiting
-4. Add request payload limits
-5. Add JWT expiration
-6. Add refresh token strategy
-7. Sanitize user input
-8. Add document access checks everywhere
-9. Prevent WebSocket abuse
-10. Add audit logs for document sharing
+4. Add auth-specific rate limits
+5. Add request payload limits
+6. Add JWT expiration
+7. Add refresh token reuse detection
+8. Sanitize user input
+9. Add document access checks everywhere
+10. Prevent WebSocket abuse
 11. Add production error handling
+12. Add security tests
 
 ---
 
-## Phase 13: Observability & Logging
+## Phase 17: Observability & Logging
 
 **Goal:** Make debugging production issues easier.
 
@@ -261,12 +382,32 @@
 6. Add health route
 7. Add readiness route
 8. Add database health check
-9. Add metrics discussion
-10. Add production monitoring plan
+9. Add Redis health check
+10. Add metrics discussion
+11. Add production monitoring plan
 
 ---
 
-## Phase 14: Multi-instance Scaling
+## Phase 18: Redis & Background Jobs
+
+**Goal:** Prepare for scaling and async workflows.
+
+### Steps
+
+1. Add Redis connection
+2. Add Redis health check
+3. Add BullMQ setup
+4. Add email job queue
+5. Add snapshot job queue
+6. Add cleanup job queue
+7. Add failed job handling
+8. Add retry strategy
+9. Add job monitoring approach
+10. Add queue tests
+
+---
+
+## Phase 19: Multi-Instance Scaling
 
 **Goal:** Prepare for real production deployment.
 
@@ -285,7 +426,7 @@
 
 ---
 
-## Phase 15: Deployment
+## Phase 20: Deployment
 
 **Goal:** Deploy backend professionally.
 
@@ -297,11 +438,13 @@
 4. Add build script
 5. Add start script
 6. Add MongoDB Atlas option
-7. Add deployment architecture
-8. Add CI pipeline
-9. Add test step in CI
-10. Add build step in CI
-11. Add deploy step
-12. Add smoke test after deployment
+7. Add Redis production option
+8. Add deployment architecture
+9. Add CI pipeline
+10. Add test step in CI
+11. Add build step in CI
+12. Add deploy step
+13. Add smoke test after deployment
+14. Add backup strategy
 
 ---
